@@ -1,4 +1,8 @@
-use std::sync::{mpsc, Arc, Mutex};
+use std::{
+    sync::{mpsc, Arc, Mutex},
+    thread::sleep,
+    time::Duration,
+};
 
 mod client;
 mod data;
@@ -16,16 +20,6 @@ fn main() {
     })
     .expect("Error setting Ctrl-C handler");
 
-    // std::thread::spawn(move || {
-    //     let cancel_token = token.clone();
-    //     async move {
-    //         if let Ok(()) = signal::ctrl_c().await {
-    //             println!("received Ctrl-C, shutting down");
-    //             cancel_token.cancel();
-    //         }
-    //     }
-    // });
-
     let srvr = srvr::Server::new(cancel.clone(), r);
     let client = client::Client::new(cancel.clone(), s.clone());
 
@@ -37,8 +31,16 @@ fn main() {
         client.run();
     });
 
+    let cancel_t3 = cancel.clone();
+    let t3 = std::thread::spawn(move || {
+        println!("stopping in 2 seconds, or press ctrl-c");
+        sleep(Duration::from_secs(2));
+        *cancel_t3.lock().unwrap() = true;
+    });
+
     _ = t1.join();
     _ = t2.join();
+    _ = t3.join();
 
     println!("join finished");
 }
